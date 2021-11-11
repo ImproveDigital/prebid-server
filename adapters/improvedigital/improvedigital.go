@@ -2,8 +2,11 @@ package improvedigital
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/mxmCherry/openrtb/v15/openrtb2"
 	"github.com/prebid/prebid-server/adapters"
@@ -14,6 +17,15 @@ import (
 
 type ImprovedigitalAdapter struct {
 	endpoint string
+}
+
+type UserExt struct {
+	Consent                    string                     `json:"consent"`
+	ConsentedProvidersSettings ConsentedProvidersSettings `json:"consented_providers_settings,omitempty"`
+}
+
+type ConsentedProvidersSettings struct {
+	ConsentedProviders []int `json:"consented_providers,omitempty"`
 }
 
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
@@ -36,6 +48,9 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
 	request.Imp = []openrtb2.Imp{imp}
+
+	a.handleAdditionalConsent(request)
+
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -143,4 +158,51 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	return "", &errortypes.BadServerResponse{
 		Message: fmt.Sprintf("Failed to find impression for ID: \"%s\"", impID),
 	}
+}
+
+func (a *ImprovedigitalAdapter) handleAdditionalConsent(request openrtb2.BidRequest) {
+	var userExt UserExt
+
+	// If user not defined, no need to parse additional consent
+	if request.User == nil {
+		return
+	}
+
+	if err := json.Unmarshal(request.User.Ext, &userExt); err != nil {
+		return
+	}
+
+	if str, err := userExt.hasAdditionalConsent(); err == nil {
+		userExt.setAdditionalIds(userExt.prepareAdditionalIds(str))
+		if extJson, err := json.Marshal(userExt); err == nil {
+			request.User.Ext = extJson
+		}
+	}
+}
+
+func (ue UserExt) hasAdditionalConsent() (string, error) {
+	tildaPosition := strings.Index(ue.Consent, "~")
+	if tildaPosition != -1 {
+		atpIdsString := ue.Consent[tildaPosition+1:]
+
+		return atpIdsString, nil
+	}
+
+	return "", errors.New("no additional consent found")
+}
+
+func (ue UserExt) prepareAdditionalIds(str string) []int {
+	additionalIds := strings.Split(str, ".")
+	atpIdsInt := make([]int, 0) // may be we can use max length of additionalIds
+	for _, id := range additionalIds {
+		if i, err := strconv.Atoi(id); err == nil {
+			atpIdsInt = append(atpIdsInt, i)
+		}
+	}
+
+	return atpIdsInt
+}
+
+func (ue *UserExt) setAdditionalIds(atpIdsInt []int) {
+	ue.ConsentedProvidersSettings = ConsentedProvidersSettings{ConsentedProviders: atpIdsInt}
 }
