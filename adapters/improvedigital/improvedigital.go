@@ -2,8 +2,11 @@ package improvedigital
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
+	"strings"
 
 	"github.com/mxmCherry/openrtb/v15/openrtb2"
 	"github.com/prebid/prebid-server/adapters"
@@ -14,6 +17,24 @@ import (
 
 type ImprovedigitalAdapter struct {
 	endpoint string
+}
+
+type UserExtReq struct {
+	Consent                   string                     `json:"consent,omitempty"`
+	Prebid                    *openrtb_ext.ExtUserPrebid `json:"prebid,omitempty"`
+	Eids                      []openrtb_ext.ExtUserEid   `json:"eids,omitempty"`
+	ConsentedProvidersSetting struct {
+		ConsentedProviders string `json:"consented_providers"`
+	} `json:"ConsentedProvidersSettings,omitempty"`
+}
+
+type UserExtRes struct {
+	Consent                   string                     `json:"consent,omitempty"`
+	Prebid                    *openrtb_ext.ExtUserPrebid `json:"prebid,omitempty"`
+	Eids                      []openrtb_ext.ExtUserEid   `json:"eids,omitempty"`
+	ConsentedProvidersSetting struct {
+		ConsentedProviders []int `json:"consented_providers,omitempty"`
+	} `json:"consented_providers_settings,omitempty"`
 }
 
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
@@ -36,9 +57,14 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
 	request.Imp = []openrtb2.Imp{imp}
+
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
+	}
+
+	if reqCloneJSON, err := a.getJSONWithAdditionalConsent(request, reqJSON); err == nil {
+		reqJSON = reqCloneJSON
 	}
 
 	headers := http.Header{}
@@ -143,4 +169,70 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	return "", &errortypes.BadServerResponse{
 		Message: fmt.Sprintf("Failed to find impression for ID: \"%s\"", impID),
 	}
+}
+
+func (a *ImprovedigitalAdapter) getJSONWithAdditionalConsent(request openrtb2.BidRequest, reqJSON json.RawMessage) (json.RawMessage, error) {
+	var userExtReq UserExtReq
+
+	// If user not defined, no need to parse additional consent
+	if request.User == nil {
+		return nil, errors.New("")
+	}
+
+	// Clone request due to testMakeRequestsImpl don't want the adapters' implementation of `MakeRequests()` to modify
+	// Ref: adapters/adapterstest/test_json.go
+	var reqClone openrtb2.BidRequest
+	if err := json.Unmarshal(reqJSON, &reqClone); err != nil {
+		return nil, err
+	}
+
+	if err := json.Unmarshal(reqClone.User.Ext, &userExtReq); err != nil {
+		return nil, errors.New("")
+	}
+
+	if str, err := userExtReq.hasAdditionalConsent(); err == nil {
+
+		userExtRes := UserExtRes{
+			Consent: userExtReq.Consent,
+			Prebid:  userExtReq.Prebid,
+			Eids:    userExtReq.Eids,
+		}
+		userExtRes.ConsentedProvidersSetting.ConsentedProviders = userExtReq.prepareAdditionalIds(str)
+
+		extJson, extErr := json.Marshal(userExtRes)
+		if extErr != nil {
+			return nil, errors.New("unable to parse user.ext")
+		}
+
+		reqClone.User.Ext = extJson
+		reqCloneJSON, reqErr := json.Marshal(reqClone)
+		if reqErr == nil {
+			return reqCloneJSON, reqErr
+		}
+	}
+
+	return nil, errors.New("additional consent not found")
+}
+
+func (ue UserExtReq) hasAdditionalConsent() (string, error) {
+	tildaPosition := strings.Index(ue.ConsentedProvidersSetting.ConsentedProviders, "~")
+	if tildaPosition != -1 {
+		atpIdsString := ue.ConsentedProvidersSetting.ConsentedProviders[tildaPosition+1:]
+
+		return atpIdsString, nil
+	}
+
+	return "", errors.New("no additional consent found")
+}
+
+func (UserExtReq) prepareAdditionalIds(str string) []int {
+	additionalIds := strings.Split(str, ".")
+	atpIdsInt := make([]int, 0) // may be we can use max length of additionalIds
+	for _, id := range additionalIds {
+		if i, err := strconv.Atoi(id); err == nil {
+			atpIdsInt = append(atpIdsInt, i)
+		}
+	}
+
+	return atpIdsInt
 }
