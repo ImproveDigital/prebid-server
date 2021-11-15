@@ -20,8 +20,10 @@ type ImprovedigitalAdapter struct {
 }
 
 type UserExt struct {
-	Consent                    string                     `json:"consent"`
-	ConsentedProvidersSettings ConsentedProvidersSettings `json:"consented_providers_settings,omitempty"`
+	Consent                    string                     `json:"consent,omitempty"`
+	Prebid                     *openrtb_ext.ExtUserPrebid `json:"prebid,omitempty"`
+	Eids                       []openrtb_ext.ExtUserEid   `json:"eids,omitempty"`
+	ConsentedProvidersSettings json.RawMessage            `json:"consented_providers_settings,omitempty"`
 }
 
 type ConsentedProvidersSettings struct {
@@ -204,5 +206,8 @@ func (ue UserExt) prepareAdditionalIds(str string) []int {
 }
 
 func (ue *UserExt) setAdditionalIds(atpIdsInt []int) {
-	ue.ConsentedProvidersSettings = ConsentedProvidersSettings{ConsentedProviders: atpIdsInt}
+	jsonString, err := json.Marshal(ConsentedProvidersSettings{ConsentedProviders: atpIdsInt})
+	if err == nil {
+		ue.ConsentedProvidersSettings = jsonString
+	}
 }
