@@ -168,10 +168,7 @@ func prepareLidStruct(JSONResponse json.RawMessage) (LidStruct, error) {
 	var h LidStruct
 	err := json.Unmarshal(JSONResponse, &h)
 
-	if err != nil {
-		return h, err
-	}
-	return h, nil
+	return h, err
 }
 
 func handleDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) {
