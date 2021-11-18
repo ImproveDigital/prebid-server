@@ -116,7 +116,7 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 			return nil, []error{err}
 		}
 
-		if lidParseError == nil && (lidStruct.SeatBid[0].Bid[i].Lid != "" || lidStruct.SeatBid[0].Bid[i].Lid != nil) {
+		if lidParseError == nil && lidStruct.SeatBid[0].Bid[i].Lid != "" && lidStruct.SeatBid[0].Bid[i].Lid != nil {
 			handleDealId(lidStruct, &bid, i)
 		}
 
@@ -177,7 +177,7 @@ func prepareLidStruct(JSONResponse json.RawMessage) (LidStruct, error) {
 func handleDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) {
 	lbid := ls.SeatBid[0].Bid[bidIndex]
 	switch lbid.Lid.(type) {
-	case string:
+	case float64:
 		// When Single Deal ID
 		if bid.DealID == "" && lbid.BuyingType != "rtb" {
 			bid.DealID = fmt.Sprintf("%v", lbid.Lid)
@@ -191,24 +191,16 @@ func handleDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) {
 }
 
 func getOneDealIdFromMultipleDeals(ls *LidStruct, bidIndex int) (string, error) {
-	buyingTypes := make(map[int]string)
-	dealIds := make(map[int]string)
+	lids := ls.SeatBid[0].Bid[bidIndex].Lid.([]interface{})
+	bts := ls.SeatBid[0].Bid[bidIndex].BuyingType.([]interface{})
 
-	// Push value from interface to map
-	for i, v := range ls.SeatBid[0].Bid[bidIndex].Lid.([]interface{}) {
-		dealIds[i] = fmt.Sprintf("%v", v)
-	}
-	for i, v := range ls.SeatBid[0].Bid[bidIndex].BuyingType.([]interface{}) {
-		buyingTypes[i] = fmt.Sprintf("%v", v)
-	}
-
-	if len(buyingTypes) != len(dealIds) {
+	if len(lids) != len(bts) {
 		return "", errors.New("deal and buying type length does not match")
 	}
 
-	for i, b := range buyingTypes {
+	for i, b := range bts {
 		if b != "rtb" {
-			return dealIds[i], nil
+			return fmt.Sprintf("%v", lids[i]), nil
 		}
 	}
 
