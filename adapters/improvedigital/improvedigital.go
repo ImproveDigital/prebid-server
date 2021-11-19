@@ -116,8 +116,8 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 			return nil, []error{err}
 		}
 
-		if lidParseError == nil && lidStruct.SeatBid[0].Bid[i].Lid != "" && lidStruct.SeatBid[0].Bid[i].Lid != nil {
-			handleDealId(lidStruct, &bid, i)
+		if lidParseError == nil && lidStruct.SeatBid[0].Bid[i].Lid != nil {
+			bid.DealID = getDealId(lidStruct, &bid, i)
 		}
 
 		bidResponse.Bids = append(bidResponse.Bids, &adapters.TypedBid{
@@ -171,20 +171,23 @@ func prepareLidStruct(JSONResponse json.RawMessage) (LidStruct, error) {
 	return h, err
 }
 
-func handleDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) {
+func getDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) string {
+	var dealId string
 	lbid := ls.SeatBid[0].Bid[bidIndex]
 	switch lbid.Lid.(type) {
 	case float64:
 		// When Single Deal ID
 		if bid.DealID == "" && lbid.BuyingType != "rtb" {
-			bid.DealID = fmt.Sprintf("%v", lbid.Lid)
+			dealId = fmt.Sprintf("%v", lbid.Lid)
 		}
 	case []interface{}:
 		// When Multiple Deal ID (rare usage)
-		if dealId, err := getOneDealIdFromMultipleDeals(&ls, bidIndex); err == nil {
-			bid.DealID = fmt.Sprintf("%v", dealId)
+		if did, err := getOneDealIdFromMultipleDeals(&ls, bidIndex); err == nil {
+			dealId = fmt.Sprintf("%v", did)
 		}
 	}
+
+	return dealId
 }
 
 func getOneDealIdFromMultipleDeals(ls *LidStruct, bidIndex int) (string, error) {
