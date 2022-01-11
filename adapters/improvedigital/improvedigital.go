@@ -39,7 +39,7 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
 	request.Imp = []openrtb2.Imp{imp}
 
-	request = a.applyAdditionalConsentString(request)
+	request = a.applyAdditionalConsentProviders(request)
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -151,7 +151,7 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 
 // This method responsible to check/validate/apply additional consent providers
 // If consent provider check/validate/apply failed, this will return original request
-func (a *ImprovedigitalAdapter) applyAdditionalConsentString(request openrtb2.BidRequest) openrtb2.BidRequest {
+func (a *ImprovedigitalAdapter) applyAdditionalConsentProviders(request openrtb2.BidRequest) openrtb2.BidRequest {
 	// If user/user.ext not defined, no need to parse additional consent
 	if request.User == nil || request.User.Ext == nil {
 		return request
