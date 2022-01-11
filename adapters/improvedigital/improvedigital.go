@@ -199,7 +199,6 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentString(request openrtb2.Bi
 	//
 	cpJSON, _ := json.Marshal(cpMap)
 	userExtMap["consented_providers_settings"] = cpJSON
-	delete(userExtMap, "ConsentedProvidersSettings")
 
 	extJson, extErr := json.Marshal(userExtMap)
 	if extErr != nil {
