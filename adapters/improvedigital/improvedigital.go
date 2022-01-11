@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 
 	"github.com/mxmCherry/openrtb/v15/openrtb2"
@@ -150,6 +149,8 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	}
 }
 
+// This method responsible to check/validate/apply additional consent providers
+// If consent provider check/validate/apply failed, this will return original request
 func (a *ImprovedigitalAdapter) applyAdditionalConsentString(request openrtb2.BidRequest) openrtb2.BidRequest {
 	// If user/user.ext not defined, no need to parse additional consent
 	if request.User == nil || request.User.Ext == nil {
@@ -157,53 +158,50 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentString(request openrtb2.Bi
 	}
 
 	var (
-		err            error
-		reqJSON        json.RawMessage
-		addConsStr     string
-		addConsStrJSON json.RawMessage
+		err     error
+		reqJSON json.RawMessage
+		cpStr   string
 	)
 
 	// Start validating additional consent
 	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
-	var userExt = make(map[string]json.RawMessage)
-	if err = json.Unmarshal(request.User.Ext, &userExt); err != nil {
+	var userExtMap = make(map[string]json.RawMessage)
+	if err = json.Unmarshal(request.User.Ext, &userExtMap); err != nil {
 		return request
 	}
 
-	cpsJSON, cpsJSONFound := userExt["ConsentedProvidersSettings"]
+	cpsMapValue, cpsJSONFound := userExtMap["ConsentedProvidersSettings"]
 	if !cpsJSONFound {
 		return request
 	}
 
 	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
-	var cp = make(map[string]json.RawMessage)
-	if err := json.Unmarshal(cpsJSON, &cp); err != nil {
+	var cpMap = make(map[string]json.RawMessage)
+	if err = json.Unmarshal(cpsMapValue, &cpMap); err != nil {
 		return request
 	}
 
-	cpJSON, cpJSONFound := cp["consented_providers"]
+	cpMapValue, cpJSONFound := cpMap["consented_providers"]
 	if !cpJSONFound {
 		return request
 	}
 	// End validating additional consent
 
 	// Check if string contain ~, then return only numbers
-	if addConsStr, err = hasAdditionalConsent(string(cpJSON)); err != nil {
+	if cpStr, err = hasAdditionalConsent(string(cpMapValue)); err != nil {
 		return request
 	}
 
-	// Parse string to json
-	if addConsStrJSON, err = prepareAdditionalIds(addConsStr); err != nil {
-		return request
-	}
+	// Prepare consent providers string for append
+	cpStr = fmt.Sprintf("[%s]", strings.Replace(cpStr, ".", ",", -1))
+	cpMap["consented_providers"] = json.RawMessage(cpStr)
 
-	// Append consented providers
-	cp["consented_providers"] = addConsStrJSON
-	finalConsentStringJSON, _ := json.Marshal(cp)
-	userExt["consented_providers_settings"] = finalConsentStringJSON
-	delete(userExt, "ConsentedProvidersSettings")
+	//
+	cpJSON, _ := json.Marshal(cpMap)
+	userExtMap["consented_providers_settings"] = cpJSON
+	delete(userExtMap, "ConsentedProvidersSettings")
 
-	extJson, extErr := json.Marshal(userExt)
+	extJson, extErr := json.Marshal(userExtMap)
 	if extErr != nil {
 		return request
 	}
@@ -234,16 +232,4 @@ func hasAdditionalConsent(consentStr string) (string, error) {
 	}
 
 	return "", errors.New("no additional consent found")
-}
-
-func prepareAdditionalIds(str string) (json.RawMessage, error) {
-	additionalIds := strings.Split(str, ".")
-	atpIdsInt := make([]int, 0)
-	for _, id := range additionalIds {
-		if i, err := strconv.Atoi(id); err == nil {
-			atpIdsInt = append(atpIdsInt, i)
-		}
-	}
-
-	return json.Marshal(atpIdsInt)
 }
