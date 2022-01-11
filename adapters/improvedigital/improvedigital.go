@@ -19,24 +19,6 @@ type ImprovedigitalAdapter struct {
 	endpoint string
 }
 
-type UserExtReq struct {
-	Consent                   string                     `json:"consent,omitempty"`
-	Prebid                    *openrtb_ext.ExtUserPrebid `json:"prebid,omitempty"`
-	Eids                      []openrtb_ext.ExtUserEid   `json:"eids,omitempty"`
-	ConsentedProvidersSetting struct {
-		ConsentedProviders string `json:"consented_providers"`
-	} `json:"ConsentedProvidersSettings,omitempty"`
-}
-
-type UserExtRes struct {
-	Consent                   string                     `json:"consent,omitempty"`
-	Prebid                    *openrtb_ext.ExtUserPrebid `json:"prebid,omitempty"`
-	Eids                      []openrtb_ext.ExtUserEid   `json:"eids,omitempty"`
-	ConsentedProvidersSetting struct {
-		ConsentedProviders []int `json:"consented_providers,omitempty"`
-	} `json:"consented_providers_settings,omitempty"`
-}
-
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
 func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqInfo *adapters.ExtraRequestInfo) ([]*adapters.RequestData, []error) {
 	numRequests := len(request.Imp)
@@ -58,13 +40,10 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
 	request.Imp = []openrtb2.Imp{imp}
 
+	request = a.applyAdditionalConsentString(request)
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
-	}
-
-	if reqCloneJSON, err := a.getJSONWithAdditionalConsent(request, reqJSON); err == nil {
-		reqJSON = reqCloneJSON
 	}
 
 	headers := http.Header{}
@@ -171,53 +150,85 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	}
 }
 
-func (a *ImprovedigitalAdapter) getJSONWithAdditionalConsent(request openrtb2.BidRequest, reqJSON json.RawMessage) (json.RawMessage, error) {
-	var userExtReq UserExtReq
-
-	// If user not defined, no need to parse additional consent
-	if request.User == nil {
-		return nil, errors.New("")
+func (a *ImprovedigitalAdapter) applyAdditionalConsentString(request openrtb2.BidRequest) openrtb2.BidRequest {
+	// If user/user.ext not defined, no need to parse additional consent
+	if request.User == nil || request.User.Ext == nil {
+		return request
 	}
 
-	// Clone request due to testMakeRequestsImpl don't want the adapters' implementation of `MakeRequests()` to modify
-	// Ref: adapters/adapterstest/test_json.go
+	var (
+		err            error
+		reqJSON        json.RawMessage
+		addConsStr     string
+		addConsStrJSON json.RawMessage
+	)
+
+	// Start validating additional consent
+	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
+	var userExt = make(map[string]json.RawMessage)
+	if err = json.Unmarshal(request.User.Ext, &userExt); err != nil {
+		return request
+	}
+
+	cpsJSON, cpsJSONFound := userExt["ConsentedProvidersSettings"]
+	if !cpsJSONFound {
+		return request
+	}
+
+	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
+	var cp = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(cpsJSON, &cp); err != nil {
+		return request
+	}
+
+	cpJSON, cpJSONFound := cp["consented_providers"]
+	if !cpJSONFound {
+		return request
+	}
+	// End validating additional consent
+
+	// Check if string contain ~, then return only numbers
+	if addConsStr, err = hasAdditionalConsent(string(cpJSON)); err != nil {
+		return request
+	}
+
+	// Parse string to json
+	if addConsStrJSON, err = prepareAdditionalIds(addConsStr); err != nil {
+		return request
+	}
+
+	// Append consented providers
+	cp["consented_providers"] = addConsStrJSON
+	finalConsentStringJSON, _ := json.Marshal(cp)
+	userExt["consented_providers_settings"] = finalConsentStringJSON
+	delete(userExt, "ConsentedProvidersSettings")
+
+	extJson, extErr := json.Marshal(userExt)
+	if extErr != nil {
+		return request
+	}
+
+	// Start request closing
+	reqJSON, err = json.Marshal(request)
+	if err != nil {
+		return request
+	}
+
 	var reqClone openrtb2.BidRequest
-	if err := json.Unmarshal(reqJSON, &reqClone); err != nil {
-		return nil, err
+	if err = json.Unmarshal(reqJSON, &reqClone); err != nil {
+		return request
 	}
+	// End request closing
 
-	if err := json.Unmarshal(reqClone.User.Ext, &userExtReq); err != nil {
-		return nil, errors.New("")
-	}
+	reqClone.User.Ext = extJson
 
-	if str, err := userExtReq.hasAdditionalConsent(); err == nil {
-
-		userExtRes := UserExtRes{
-			Consent: userExtReq.Consent,
-			Prebid:  userExtReq.Prebid,
-			Eids:    userExtReq.Eids,
-		}
-		userExtRes.ConsentedProvidersSetting.ConsentedProviders = userExtReq.prepareAdditionalIds(str)
-
-		extJson, extErr := json.Marshal(userExtRes)
-		if extErr != nil {
-			return nil, errors.New("unable to parse user.ext")
-		}
-
-		reqClone.User.Ext = extJson
-		reqCloneJSON, reqErr := json.Marshal(reqClone)
-		if reqErr == nil {
-			return reqCloneJSON, reqErr
-		}
-	}
-
-	return nil, errors.New("additional consent not found")
+	return reqClone
 }
 
-func (ue UserExtReq) hasAdditionalConsent() (string, error) {
-	tildaPosition := strings.Index(ue.ConsentedProvidersSetting.ConsentedProviders, "~")
+func hasAdditionalConsent(consentStr string) (string, error) {
+	tildaPosition := strings.Index(consentStr, "~")
 	if tildaPosition != -1 {
-		atpIdsString := ue.ConsentedProvidersSetting.ConsentedProviders[tildaPosition+1:]
+		atpIdsString := consentStr[tildaPosition+1 : len(consentStr)-1]
 
 		return atpIdsString, nil
 	}
@@ -225,14 +236,14 @@ func (ue UserExtReq) hasAdditionalConsent() (string, error) {
 	return "", errors.New("no additional consent found")
 }
 
-func (UserExtReq) prepareAdditionalIds(str string) []int {
+func prepareAdditionalIds(str string) (json.RawMessage, error) {
 	additionalIds := strings.Split(str, ".")
-	atpIdsInt := make([]int, 0) // may be we can use max length of additionalIds
+	atpIdsInt := make([]int, 0)
 	for _, id := range additionalIds {
 		if i, err := strconv.Atoi(id); err == nil {
 			atpIdsInt = append(atpIdsInt, i)
 		}
 	}
 
-	return atpIdsInt
+	return json.Marshal(atpIdsInt)
 }
