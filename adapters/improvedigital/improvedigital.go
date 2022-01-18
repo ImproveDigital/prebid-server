@@ -2,7 +2,6 @@ package improvedigital
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -39,7 +38,7 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
 	request.Imp = []openrtb2.Imp{imp}
 
-	request = a.applyAdditionalConsentProviders(request)
+	request = a.applyAdditionalConsentProvidersArray(request)
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
 		return nil, err
@@ -149,9 +148,8 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	}
 }
 
-// This method responsible to check/validate/apply additional consent providers
-// If consent provider check/validate/apply failed, this will return original request
-func (a *ImprovedigitalAdapter) applyAdditionalConsentProviders(request openrtb2.BidRequest) openrtb2.BidRequest {
+// This method responsible to clone request and convert additional consent providers string to array when additional consent provider found
+func (a *ImprovedigitalAdapter) applyAdditionalConsentProvidersArray(request openrtb2.BidRequest) openrtb2.BidRequest {
 	// If user/user.ext not defined, no need to parse additional consent
 	if request.User == nil || request.User.Ext == nil {
 		return request
@@ -187,16 +185,18 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentProviders(request openrtb2
 	}
 	// End validating additional consent
 
-	// Check if string contain ~, then return only numbers
-	if cpStr, err = hasAdditionalConsent(string(cpMapValue)); err != nil {
+	// Check if string contain ~, then substring after ~ to end of string
+	consentStr := string(cpMapValue)
+	var tildaPosition int
+	if tildaPosition = strings.Index(consentStr, "~"); tildaPosition == -1 {
 		return request
 	}
+	cpStr = consentStr[tildaPosition+1 : len(consentStr)-1]
 
 	// Prepare consent providers string for append
 	cpStr = fmt.Sprintf("[%s]", strings.Replace(cpStr, ".", ",", -1))
 	cpMap["consented_providers"] = json.RawMessage(cpStr)
 
-	//
 	cpJSON, _ := json.Marshal(cpMap)
 	userExtMap["consented_providers_settings"] = cpJSON
 
@@ -220,15 +220,4 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentProviders(request openrtb2
 	reqClone.User.Ext = extJson
 
 	return reqClone
-}
-
-func hasAdditionalConsent(consentStr string) (string, error) {
-	tildaPosition := strings.Index(consentStr, "~")
-	if tildaPosition != -1 {
-		atpIdsString := consentStr[tildaPosition+1 : len(consentStr)-1]
-
-		return atpIdsString, nil
-	}
-
-	return "", errors.New("no additional consent found")
 }
