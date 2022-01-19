@@ -2,9 +2,9 @@ package improvedigital
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/mxmCherry/openrtb/v15/openrtb2"
 	"github.com/prebid/prebid-server/adapters"
@@ -13,18 +13,23 @@ import (
 	"github.com/prebid/prebid-server/openrtb_ext"
 )
 
+const BuyingTypeRTB = "rtb"
+
 type ImprovedigitalAdapter struct {
 	endpoint string
 }
 
-// This struct usage for parse lid from bid response
+// This struct usage for parse line_item_id from bid response
 type LidStruct struct {
 	Id      string
 	SeatBid []struct {
 		Bid []struct {
-			DealId     string
-			Lid        interface{} `json:"lid"`
-			BuyingType interface{} `json:"buying_type"`
+			Ext struct {
+				ImproveDigital struct {
+					LineItemId int    `json:"line_item_id"`
+					BuyingType string `json:"buying_type"`
+				}
+			}
 		}
 	}
 }
@@ -106,8 +111,6 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 
 	bidResponse := adapters.NewBidderResponseWithBidsCapacity(len(seatBid.Bid))
 
-	lidStruct, lidParseError := prepareLidStruct(response.Body)
-
 	for i := range seatBid.Bid {
 		bid := seatBid.Bid[i]
 
@@ -116,8 +119,12 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 			return nil, []error{err}
 		}
 
-		if lidParseError == nil && lidStruct.SeatBid[0].Bid[i].Lid != nil {
-			bid.DealID = getDealId(lidStruct, &bid, i)
+		var lidStruct LidStruct
+		if err = json.Unmarshal(response.Body, &lidStruct); err == nil {
+			improveDigital := lidStruct.SeatBid[0].Bid[i].Ext.ImproveDigital
+			if improveDigital.LineItemId != 0 && improveDigital.BuyingType != BuyingTypeRTB {
+				bid.DealID = strconv.Itoa(improveDigital.LineItemId)
+			}
 		}
 
 		bidResponse.Bids = append(bidResponse.Bids, &adapters.TypedBid{
@@ -162,47 +169,4 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	return "", &errortypes.BadServerResponse{
 		Message: fmt.Sprintf("Failed to find impression for ID: \"%s\"", impID),
 	}
-}
-
-func prepareLidStruct(JSONResponse json.RawMessage) (LidStruct, error) {
-	var h LidStruct
-	err := json.Unmarshal(JSONResponse, &h)
-
-	return h, err
-}
-
-func getDealId(ls LidStruct, bid *openrtb2.Bid, bidIndex int) string {
-	var dealId string
-	lbid := ls.SeatBid[0].Bid[bidIndex]
-	switch lbid.Lid.(type) {
-	case float64:
-		// When Single Deal ID
-		if bid.DealID == "" && lbid.BuyingType != "rtb" {
-			dealId = fmt.Sprintf("%v", lbid.Lid)
-		}
-	case []interface{}:
-		// When Multiple Deal ID (rare usage)
-		if did, err := getOneDealIdFromMultipleDeals(&ls, bidIndex); err == nil {
-			dealId = fmt.Sprintf("%v", did)
-		}
-	}
-
-	return dealId
-}
-
-func getOneDealIdFromMultipleDeals(ls *LidStruct, bidIndex int) (string, error) {
-	lids := ls.SeatBid[0].Bid[bidIndex].Lid.([]interface{})
-	bts := ls.SeatBid[0].Bid[bidIndex].BuyingType.([]interface{})
-
-	if len(lids) != len(bts) {
-		return "", errors.New("deal and buying type length does not match")
-	}
-
-	for i, b := range bts {
-		if b != "rtb" {
-			return fmt.Sprintf("%v", lids[i]), nil
-		}
-	}
-
-	return "", nil
 }

@@ -30,25 +30,6 @@
         }
       },
       {
-        "id": "test-imp-id-video",
-        "video": {
-          "mimes": [
-            "video/mp4"
-          ],
-          "protocols": [
-            2,
-            5
-          ],
-          "w": 1920,
-          "h": 1080
-        },
-        "ext": {
-          "bidder": {
-            "placementId": 13244
-          }
-        }
-      },
-      {
         "id": "test-imp-id-banner",
         "banner": {
           "format": [
@@ -121,79 +102,15 @@
                   "crid": "12345678",
                   "h": 250,
                   "w": 300,
-                  "lid": [
-                    111,
-                    222
-                  ],
-                  "buying_type": [
-                    "rtb",
-                    "direct"
-                  ]
-                }
-              ]
-            }
-          ],
-          "cur": "USD"
-        }
-      }
-    },
-    {
-      "expectedRequest": {
-        "uri": "http://localhost/pbs",
-        "body": {
-          "id": "test-request-id",
-          "site": {
-            "page": "https://good.site/url",
-            "domain": "good.site",
-            "publisher": {
-              "id": "uniq_pub_id"
-            },
-            "keywords": "omgword",
-            "ext": {
-              "amp": 0
-            }
-          },
-          "imp": [
-            {
-              "id": "test-imp-id-video",
-              "video": {
-                "mimes": [
-                  "video/mp4"
-                ],
-                "protocols": [
-                  2,
-                  5
-                ],
-                "w": 1920,
-                "h": 1080
-              },
-              "ext": {
-                "bidder": {
-                  "placementId": 13244
-                }
-              }
-            }
-          ]
-        }
-      },
-      "mockResponse": {
-        "status": 200,
-        "body": {
-          "id": "test-request-id",
-          "seatbid": [
-            {
-              "seat": "improvedigital",
-              "bid": [
-                {
-                  "id": "randomid2",
-                  "impid": "test-imp-id-video",
-                  "price": 0.5,
-                  "adm": "some-test-ad-vast",
-                  "crid": "1234567",
-                  "w": 1920,
-                  "h": 1080,
-                  "lid": 1122,
-                  "buying_type": "direct"
+                  "ext": {
+                    "improvedigital": {
+                      "line_item_id": 279820,
+                      "bidder_id": 0,
+                      "brand_name": "",
+                      "buying_type": "classic",
+                      "agency_id": "0"
+                    }
+                  }
                 }
               ]
             }
@@ -256,8 +173,15 @@
                   "crid": "12345678",
                   "h": 250,
                   "w": 300,
-                  "lid": 3344,
-                  "buying_type": "rtb"
+                  "ext": {
+                    "improvedigital": {
+                      "line_item_id": 279820,
+                      "bidder_id": 0,
+                      "brand_name": "",
+                      "buying_type": "rtb",
+                      "agency_id": "0"
+                    }
+                  }
                 }
               ]
             }
@@ -282,27 +206,18 @@
             "crid": "12345678",
             "w": 300,
             "h": 250,
-            "dealid": "222"
+            "dealid": "279820",
+            "ext": {
+              "improvedigital": {
+                "line_item_id": 279820,
+                "bidder_id": 0,
+                "brand_name": "",
+                "buying_type": "classic",
+                "agency_id": "0"
+              }
+            }
           },
           "type": "banner"
-        }
-      ]
-    },
-    {
-      "currency": "USD",
-      "bids": [
-        {
-          "bid": {
-            "id": "randomid2",
-            "impid": "test-imp-id-video",
-            "price": 0.5,
-            "adm": "some-test-ad-vast",
-            "crid": "1234567",
-            "w": 1920,
-            "h": 1080,
-            "dealid": "1122"
-          },
-          "type": "video"
         }
       ]
     },
@@ -319,7 +234,16 @@
             "cid": "987",
             "crid": "12345678",
             "w": 300,
-            "h": 250
+            "h": 250,
+            "ext": {
+              "improvedigital": {
+                "line_item_id": 279820,
+                "bidder_id": 0,
+                "brand_name": "",
+                "buying_type": "rtb",
+                "agency_id": "0"
+              }
+            }
           },
           "type": "banner"
         }
