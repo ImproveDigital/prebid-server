@@ -35,6 +35,8 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 }
 
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
+	// Handle IsRewardedInventory
+	handleRewardedInventory(&imp)
 	request.Imp = []openrtb2.Imp{imp}
 	reqJSON, err := json.Marshal(request)
 	if err != nil {
@@ -142,5 +144,30 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 	// This shouldnt happen. Lets handle it just incase by returning an error.
 	return "", &errortypes.BadServerResponse{
 		Message: fmt.Sprintf("Failed to find impression for ID: \"%s\"", impID),
+	}
+}
+
+func handleRewardedInventory(imp *openrtb2.Imp) {
+	var bidderExt = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(imp.Ext, &bidderExt); err != nil {
+		return
+	}
+
+	prebidJSONValue, prebidJSONFound := bidderExt["prebid"]
+	if !prebidJSONFound {
+		return
+	}
+
+	var prebidMap = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(prebidJSONValue, &prebidMap); err != nil {
+		return
+	}
+
+	if rewardedInventory, ok := prebidMap["is_rewarded_inventory"]; ok && string(rewardedInventory) == "1" {
+		bidderExt["is_rewarded_inventory"] = json.RawMessage(`true`)
+	}
+
+	if r, err := json.Marshal(bidderExt); err == nil {
+		imp.Ext = r
 	}
 }
