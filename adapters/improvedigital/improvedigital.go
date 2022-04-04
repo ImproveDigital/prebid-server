@@ -153,11 +153,6 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 
 // This method responsible to clone request and convert additional consent providers string to array when additional consent provider found
 func (a *ImprovedigitalAdapter) applyAdditionalConsentProvidersArray(request openrtb2.BidRequest) (openrtb2.BidRequest, error) {
-	// If user/user.ext not defined, no need to parse additional consent
-	if request.User == nil || request.User.Ext == nil {
-		return request, errors.New("skip: user.ext data required")
-	}
-
 	const (
 		consentProvidersSettingsInputKey = "ConsentedProvidersSettings"
 		consentProvidersSettingsOutKey   = "consented_providers_settings"
@@ -165,32 +160,38 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentProvidersArray(request ope
 	)
 
 	var (
-		err     error
-		reqJSON json.RawMessage
-		cpStr   string
+		err      error
+		reqJSON  json.RawMessage
+		cpStr    string
+		emptyReq openrtb2.BidRequest
 	)
+
+	// If user/user.ext not defined, no need to parse additional consent
+	if request.User == nil || request.User.Ext == nil {
+		return emptyReq, errors.New("skip: user.ext data required")
+	}
 
 	// Start validating additional consent
 	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
 	var userExtMap = make(map[string]json.RawMessage)
 	if err = json.Unmarshal(request.User.Ext, &userExtMap); err != nil {
-		return request, err
+		return emptyReq, err
 	}
 
 	cpsMapValue, cpsJSONFound := userExtMap[consentProvidersSettingsInputKey]
 	if !cpsJSONFound {
-		return request, errors.New("skip: ConsentedProvidersSettings data required")
+		return emptyReq, errors.New("skip: ConsentedProvidersSettings data required")
 	}
 
 	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
 	var cpMap = make(map[string]json.RawMessage)
 	if err = json.Unmarshal(cpsMapValue, &cpMap); err != nil {
-		return request, err
+		return emptyReq, err
 	}
 
 	cpMapValue, cpJSONFound := cpMap[consentedProvidersKey]
 	if !cpJSONFound {
-		return request, errors.New("skip: consented_providers data required")
+		return emptyReq, errors.New("skip: consented_providers data required")
 	}
 	// End validating additional consent
 
@@ -198,7 +199,7 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentProvidersArray(request ope
 	consentStr := string(cpMapValue)
 	var tildaPosition int
 	if tildaPosition = strings.Index(consentStr, "~"); tildaPosition == -1 {
-		return request, errors.New("skip: additional data not found")
+		return emptyReq, errors.New("skip: additional data not found")
 	}
 	cpStr = consentStr[tildaPosition+1 : len(consentStr)-1]
 
@@ -211,18 +212,18 @@ func (a *ImprovedigitalAdapter) applyAdditionalConsentProvidersArray(request ope
 
 	extJson, extErr := json.Marshal(userExtMap)
 	if extErr != nil {
-		return request, extErr
+		return emptyReq, extErr
 	}
 
 	// Start request closing
 	reqJSON, err = json.Marshal(request)
 	if err != nil {
-		return request, err
+		return emptyReq, err
 	}
 
 	var reqClone openrtb2.BidRequest
 	if err = json.Unmarshal(reqJSON, &reqClone); err != nil {
-		return request, err
+		return emptyReq, err
 	}
 	// End request closing
 
