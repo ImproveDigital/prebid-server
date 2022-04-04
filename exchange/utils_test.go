@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/prebid/prebid-server/firstpartydata"
 	"testing"
 
 	"github.com/mxmCherry/openrtb/v15/openrtb2"
 	"github.com/prebid/prebid-server/config"
 	"github.com/prebid/prebid-server/errortypes"
+	"github.com/prebid/prebid-server/firstpartydata"
 	"github.com/prebid/prebid-server/gdpr"
 	"github.com/prebid/prebid-server/metrics"
 	"github.com/prebid/prebid-server/openrtb_ext"
@@ -35,7 +35,7 @@ func (p *permissionsMock) BidderSyncAllowed(ctx context.Context, bidder openrtb_
 	return true, nil
 }
 
-func (p *permissionsMock) AuctionActivitiesAllowed(ctx context.Context, bidder openrtb_ext.BidderName, PublisherID string, gdpr gdpr.Signal, consent string, weakVendorEnforcement bool) (allowBidRequest bool, passGeo bool, passID bool, err error) {
+func (p *permissionsMock) AuctionActivitiesAllowed(ctx context.Context, bidderCoreName openrtb_ext.BidderName, bidder openrtb_ext.BidderName, PublisherID string, gdprSignal gdpr.Signal, consent string, weakVendorEnforcement bool, aliasGVLIDs map[string]uint16) (allowBidRequest bool, passGeo bool, passID bool, err error) {
 	if p.allowAllBidders {
 		return true, p.passGeo, p.passID, p.activitiesError
 	}
@@ -249,6 +249,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{
 				"bidder": json.RawMessage(`"anyBidder"`),
@@ -257,6 +258,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			expectedError: "",
 		},
@@ -267,6 +269,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{
 				"bidder":    json.RawMessage(`"anyBidder"`),
@@ -277,6 +280,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			expectedError: "",
 		},
@@ -287,12 +291,14 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":      json.RawMessage(`"anyData"`),
 				"context":   json.RawMessage(`"anyContext"`),
 				"skadn":     json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":      json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{},
 			expected: map[string]json.RawMessage{
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			expectedError: "",
 		},
@@ -304,6 +310,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":      json.RawMessage(`"anyData"`),
 				"context":   json.RawMessage(`"anyContext"`),
 				"skadn":     json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":      json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{
 				"bidder": json.RawMessage(`"anyBidder"`),
@@ -312,6 +319,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			expectedError: "",
 		},
@@ -323,6 +331,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":      json.RawMessage(`"anyData"`),
 				"context":   json.RawMessage(`"anyContext"`),
 				"skadn":     json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":      json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{
 				"bidder":    json.RawMessage(`"anyBidder"`),
@@ -333,6 +342,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			expectedError: "",
 		},
@@ -343,6 +353,7 @@ func TestCreateSanitizedImpExt(t *testing.T) {
 				"data":    json.RawMessage(`"anyData"`),
 				"context": json.RawMessage(`"anyContext"`),
 				"skadn":   json.RawMessage(`"anySKAdNetwork"`),
+				"gpid":    json.RawMessage(`"anyGPID"`),
 			},
 			givenImpExtPrebid: map[string]json.RawMessage{
 				"malformed": json.RawMessage(`json`), // String value without quotes.
@@ -401,7 +412,7 @@ func TestExtractBidderExts(t *testing.T) {
 		},
 		{
 			description:              "Special Names Ignored - imp.ext.BIDDER",
-			givenImpExt:              map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`)},
+			givenImpExt:              map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`), "gpid": json.RawMessage(`{"gpid":"value4"}}`)},
 			givenImpExtPrebidBidders: map[string]json.RawMessage{},
 			expected:                 map[string]json.RawMessage{},
 		},
@@ -420,8 +431,8 @@ func TestExtractBidderExts(t *testing.T) {
 		{
 			description:              "Special Names Not Treated Differently - imp.ext.prebid.bidder.BIDDER",
 			givenImpExt:              map[string]json.RawMessage{},
-			givenImpExtPrebidBidders: map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`)},
-			expected:                 map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`)},
+			givenImpExtPrebidBidders: map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`), "gpid": json.RawMessage(`{"gpid":"value4"}}`)},
+			expected:                 map[string]json.RawMessage{"prebid": json.RawMessage(`{"prebid":"value1"}}`), "context": json.RawMessage(`{"firstPartyData":"value2"}}`), "skadn": json.RawMessage(`{"skAdNetwork":"value3"}}`), "gpid": json.RawMessage(`{"gpid":"value4"}}`)},
 		},
 		{
 			description:              "Mixed - Both - imp.ext.BIDDER + imp.ext.prebid.bidder.BIDDER",
@@ -826,83 +837,60 @@ func TestCleanOpenRTBRequestsCOPPA(t *testing.T) {
 }
 
 func TestCleanOpenRTBRequestsSChain(t *testing.T) {
+	const seller1SChain string = `"schain":{"complete":1,"nodes":[{"asi":"directseller1.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}`
+	const seller2SChain string = `"schain":{"complete":2,"nodes":[{"asi":"directseller2.com","sid":"00002","rid":"BidRequest2","hp":2}],"ver":"2.0"}`
+
 	testCases := []struct {
 		description   string
 		inExt         json.RawMessage
 		inSourceExt   json.RawMessage
-		outSourceExt  json.RawMessage
 		outRequestExt json.RawMessage
+		outSourceExt  json.RawMessage
 		hasError      bool
 	}{
 		{
-			description:   "Empty root ext and source ext, nil unmarshaled ext",
-			inExt:         nil,
-			inSourceExt:   json.RawMessage(``),
-			outSourceExt:  json.RawMessage(``),
-			outRequestExt: json.RawMessage(``),
-			hasError:      false,
-		},
-		{
-			description:   "Empty root ext, source ext, and unmarshaled ext",
-			inExt:         json.RawMessage(``),
-			inSourceExt:   json.RawMessage(``),
-			outSourceExt:  json.RawMessage(``),
-			outRequestExt: json.RawMessage(``),
-			hasError:      false,
-		},
-		{
-			description:   "No schains in root ext and empty source ext. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(``),
-			inExt:         json.RawMessage(`{"prebid":{"schains":[]}}`),
-			outSourceExt:  json.RawMessage(``),
-			outRequestExt: json.RawMessage(`{"prebid":{}}`),
-			hasError:      false,
-		},
-		{
-			description:   "Use source schain -- no bidder schain or wildcard schain in ext.prebid.schains. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"example.com","sid":"example1","rid":"ExampleReq1","hp":1}],"ver":"1.0"}}`),
-			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["bidder1"],"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}]}}`),
-			outSourceExt:  json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"example.com","sid":"example1","rid":"ExampleReq1","hp":1}],"ver":"1.0"}}`),
-			outRequestExt: json.RawMessage(`{"prebid":{}}`),
-			hasError:      false,
-		},
-		{
-			description:   "Use schain for bidder in ext.prebid.schains. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(``),
-			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["appnexus"],"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}]}}`),
-			outSourceExt:  json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}`),
-			outRequestExt: json.RawMessage(`{"prebid":{}}`),
-			hasError:      false,
-		},
-		{
-			description:   "Use wildcard schain in ext.prebid.schains. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(``),
-			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["*"],"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}]}}`),
-			outSourceExt:  json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}`),
-			outRequestExt: json.RawMessage(`{"prebid":{}}`),
-			hasError:      false,
-		},
-		{
-			description:   "Use schain for bidder in ext.prebid.schains instead of wildcard. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(``),
-			inExt:         json.RawMessage(`{"prebid":{"aliases":{"appnexus":"alias1"},"schains":[{"bidders":["appnexus"],"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}, {"bidders":["*"],"schain":{"complete":1,"nodes":[{"asi":"wildcard.com","sid":"wildcard1","rid":"WildcardReq1","hp":1}],"ver":"1.0"}} ]}}`),
-			outSourceExt:  json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"directseller.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}`),
-			outRequestExt: json.RawMessage(`{"prebid":{"aliases":{"appnexus":"alias1"}}}`),
-			hasError:      false,
-		},
-		{
-			description:   "Use source schain -- multiple (two) bidder schains in ext.prebid.schains. Unmarshaled ext is equivalent to root ext",
-			inSourceExt:   json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"example.com","sid":"example1","rid":"ExampleReq1","hp":1}],"ver":"1.0"}}`),
-			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["appnexus"],"schain":{"complete":1,"nodes":[{"asi":"directseller1.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}, {"bidders":["appnexus"],"schain":{"complete":1,"nodes":[{"asi":"directseller2.com","sid":"00002","rid":"BidRequest2","hp":1}],"ver":"1.0"}}]}}`),
+			description:   "source.ext is nil",
+			inExt:         json.RawMessage{},
+			inSourceExt:   nil,
+			outRequestExt: json.RawMessage{},
 			outSourceExt:  nil,
+		},
+		{
+			description:   "source.ext is defined with length 0",
+			inExt:         json.RawMessage{},
+			inSourceExt:   json.RawMessage{},
+			outRequestExt: json.RawMessage{},
+			outSourceExt:  json.RawMessage{},
+		},
+		{
+			description:   "ORTB 2.5 chain at source.ext.schain",
+			inExt:         json.RawMessage{},
+			inSourceExt:   json.RawMessage(`{` + seller1SChain + `}`),
+			outRequestExt: json.RawMessage{},
+			outSourceExt:  json.RawMessage(`{` + seller1SChain + `}`),
+		},
+		{
+			description:   "ORTB 2.5 schain at request.ext.prebid.schains",
+			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["appnexus"],` + seller1SChain + `}]}}`),
+			inSourceExt:   json.RawMessage{},
+			outRequestExt: json.RawMessage(`{"prebid":{}}`),
+			outSourceExt:  json.RawMessage(`{` + seller1SChain + `}`),
+		},
+		{
+			description:   "schainwriter instantation error -- multiple bidder schains in ext.prebid.schains.",
+			inExt:         json.RawMessage(`{"prebid":{"schains":[{"bidders":["appnexus"],` + seller1SChain + `},{"bidders":["appnexus"],` + seller2SChain + `}]}}`),
+			inSourceExt:   json.RawMessage(`{` + seller1SChain + `}`),
 			outRequestExt: nil,
+			outSourceExt:  nil,
 			hasError:      true,
 		},
 	}
 
 	for _, test := range testCases {
 		req := newBidRequest(t)
-		req.Source.Ext = test.inSourceExt
+		if test.inSourceExt != nil {
+			req.Source.Ext = test.inSourceExt
+		}
 
 		var extRequest *openrtb_ext.ExtRequest
 		if test.inExt != nil {
@@ -931,6 +919,90 @@ func TestCleanOpenRTBRequestsSChain(t *testing.T) {
 			assert.Equal(t, test.outRequestExt, result.BidRequest.Ext, test.description+":Ext")
 		}
 	}
+}
+
+func TestCleanOpenRTBRequestsBidderParams(t *testing.T) {
+	testCases := []struct {
+		description string
+		inExt       json.RawMessage
+		expectedExt map[string]json.RawMessage
+		hasError    bool
+	}{
+		{
+			description: "Nil Bidder params",
+			inExt:       nil,
+			expectedExt: getExpectedReqExt(true, false, false),
+			hasError:    false,
+		},
+		{
+			description: "Bidder params for single partner",
+			inExt:       json.RawMessage(`{"prebid":{"bidderparams": {"pubmatic": {"profile":1234,"version":2}}}}`),
+			expectedExt: getExpectedReqExt(false, true, false),
+			hasError:    false,
+		},
+		{
+			description: "Bidder params for two partners",
+			inExt:       json.RawMessage(`{"prebid":{"bidderparams": {"pubmatic": {"profile":1234,"version":2}, "appnexus": {"key1": 123, "key2": {"innerKey1":"innerValue1"}} }}}`),
+			expectedExt: getExpectedReqExt(false, true, true),
+			hasError:    false,
+		},
+	}
+
+	for _, test := range testCases {
+		req := newBidRequestWithBidderParams(t)
+		var extRequest *openrtb_ext.ExtRequest
+		if test.inExt != nil {
+			req.Ext = test.inExt
+			unmarshaledExt, err := extractBidRequestExt(req)
+			assert.NoErrorf(t, err, test.description+":Error unmarshaling inExt")
+			extRequest = unmarshaledExt
+		}
+
+		auctionReq := AuctionRequest{
+			BidRequest: req,
+			UserSyncs:  &emptyUsersync{},
+		}
+
+		bidderToSyncerKey := map[string]string{}
+		permissions := permissionsMock{allowAllBidders: true, passGeo: true, passID: true}
+		metrics := metrics.MetricsEngineMock{}
+		bidderRequests, _, errs := cleanOpenRTBRequests(context.Background(), auctionReq, extRequest, bidderToSyncerKey, &permissions, &metrics, gdpr.SignalNo, config.Privacy{}, nil)
+		if test.hasError == true {
+			assert.NotNil(t, errs)
+			assert.Len(t, bidderRequests, 0)
+		} else {
+			assert.Nil(t, errs)
+			for _, r := range bidderRequests {
+				expected := test.expectedExt[r.BidderName.String()]
+				actual := r.BidRequest.Ext
+				assert.Equal(t, expected, actual, test.description+" Req:Ext.Prebid.BidderParams")
+			}
+		}
+	}
+}
+
+func getExpectedReqExt(nilExt, includePubmaticParams, includeAppnexusParams bool) map[string]json.RawMessage {
+	bidderParamsMap := make(map[string]json.RawMessage)
+
+	if nilExt {
+		bidderParamsMap["pubmatic"] = json.RawMessage(``)
+		bidderParamsMap["appnexus"] = json.RawMessage(``)
+		return bidderParamsMap
+	}
+
+	if includePubmaticParams {
+		bidderParamsMap["pubmatic"] = json.RawMessage(`{"prebid":{"bidderparams":{"profile":1234,"version":2}}}`)
+	} else {
+		bidderParamsMap["pubmatic"] = json.RawMessage(`{"prebid":{}}`)
+	}
+
+	if includeAppnexusParams {
+		bidderParamsMap["appnexus"] = json.RawMessage(`{"prebid":{"bidderparams":{"key1":123,"key2":{"innerKey1":"innerValue1"}}}}`)
+	} else {
+		bidderParamsMap["appnexus"] = json.RawMessage(`{"prebid":{}}`)
+	}
+
+	return bidderParamsMap
 }
 
 func TestExtractBidRequestExt(t *testing.T) {
@@ -2000,6 +2072,47 @@ func newBidRequest(t *testing.T) *openrtb2.BidRequest {
 	}
 }
 
+func newBidRequestWithBidderParams(t *testing.T) *openrtb2.BidRequest {
+	return &openrtb2.BidRequest{
+		Site: &openrtb2.Site{
+			Page:   "www.some.domain.com",
+			Domain: "domain.com",
+			Publisher: &openrtb2.Publisher{
+				ID: "some-publisher-id",
+			},
+		},
+		Device: &openrtb2.Device{
+			DIDMD5:   "some device ID hash",
+			UA:       "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_13_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.87 Safari/537.36",
+			IFA:      "ifa",
+			IP:       "132.173.230.74",
+			Language: "EN",
+		},
+		Source: &openrtb2.Source{
+			TID: "61018dc9-fa61-4c41-b7dc-f90b9ae80e87",
+		},
+		User: &openrtb2.User{
+			ID:       "our-id",
+			BuyerUID: "their-id",
+			Yob:      1982,
+			Ext:      json.RawMessage(`{}`),
+		},
+		Imp: []openrtb2.Imp{{
+			ID: "some-imp-id",
+			Banner: &openrtb2.Banner{
+				Format: []openrtb2.Format{{
+					W: 300,
+					H: 250,
+				}, {
+					W: 300,
+					H: 600,
+				}},
+			},
+			Ext: json.RawMessage(`{"appnexus": {"placementId": 1}, "pubmatic":{"publisherId": "1234"}}`),
+		}},
+	}
+}
+
 func TestRandomizeList(t *testing.T) {
 	var (
 		bidder1 = openrtb_ext.BidderName("bidder1")
@@ -2035,101 +2148,6 @@ func TestRandomizeList(t *testing.T) {
 		// elements. we are not testing the random number generator itself.
 		assert.ElementsMatch(t, test.bidders, biddersWorkingCopy)
 	}
-}
-
-func TestBidderToPrebidChains(t *testing.T) {
-	input := openrtb_ext.ExtRequest{
-		Prebid: openrtb_ext.ExtRequestPrebid{
-			SChains: []*openrtb_ext.ExtRequestPrebidSChain{
-				{
-					Bidders: []string{"Bidder1", "Bidder2"},
-					SChain: openrtb_ext.ExtRequestPrebidSChainSChain{
-						Complete: 1,
-						Nodes: []*openrtb_ext.ExtRequestPrebidSChainSChainNode{
-							{
-								ASI:    "asi1",
-								SID:    "sid1",
-								Name:   "name1",
-								RID:    "rid1",
-								Domain: "domain1",
-								HP:     1,
-							},
-							{
-								ASI:    "asi2",
-								SID:    "sid2",
-								Name:   "name2",
-								RID:    "rid2",
-								Domain: "domain2",
-								HP:     2,
-							},
-						},
-						Ver: "version1",
-					},
-				},
-				{
-					Bidders: []string{"Bidder3", "Bidder4"},
-					SChain:  openrtb_ext.ExtRequestPrebidSChainSChain{},
-				},
-			},
-		},
-	}
-
-	output, err := BidderToPrebidSChains(input.Prebid.SChains)
-
-	assert.Nil(t, err)
-	assert.Equal(t, len(output), 4)
-	assert.Same(t, output["Bidder1"], &input.Prebid.SChains[0].SChain)
-	assert.Same(t, output["Bidder2"], &input.Prebid.SChains[0].SChain)
-	assert.Same(t, output["Bidder3"], &input.Prebid.SChains[1].SChain)
-	assert.Same(t, output["Bidder4"], &input.Prebid.SChains[1].SChain)
-}
-
-func TestBidderToPrebidChainsDiscardMultipleChainsForBidder(t *testing.T) {
-	input := openrtb_ext.ExtRequest{
-		Prebid: openrtb_ext.ExtRequestPrebid{
-			SChains: []*openrtb_ext.ExtRequestPrebidSChain{
-				{
-					Bidders: []string{"Bidder1"},
-					SChain:  openrtb_ext.ExtRequestPrebidSChainSChain{},
-				},
-				{
-					Bidders: []string{"Bidder1", "Bidder2"},
-					SChain:  openrtb_ext.ExtRequestPrebidSChainSChain{},
-				},
-			},
-		},
-	}
-
-	output, err := BidderToPrebidSChains(input.Prebid.SChains)
-
-	assert.NotNil(t, err)
-	assert.Nil(t, output)
-}
-
-func TestBidderToPrebidChainsNilSChains(t *testing.T) {
-	input := openrtb_ext.ExtRequest{
-		Prebid: openrtb_ext.ExtRequestPrebid{
-			SChains: nil,
-		},
-	}
-
-	output, err := BidderToPrebidSChains(input.Prebid.SChains)
-
-	assert.Nil(t, err)
-	assert.Equal(t, len(output), 0)
-}
-
-func TestBidderToPrebidChainsZeroLengthSChains(t *testing.T) {
-	input := openrtb_ext.ExtRequest{
-		Prebid: openrtb_ext.ExtRequestPrebid{
-			SChains: []*openrtb_ext.ExtRequestPrebidSChain{},
-		},
-	}
-
-	output, err := BidderToPrebidSChains(input.Prebid.SChains)
-
-	assert.Nil(t, err)
-	assert.Equal(t, len(output), 0)
 }
 
 func TestRemoveUnpermissionedEids(t *testing.T) {
@@ -2495,122 +2513,46 @@ func TestRemoveUnpermissionedEidsEmptyValidations(t *testing.T) {
 	}
 }
 
-func TestBuildXPrebidHeader(t *testing.T) {
-	testCases := []struct {
-		description   string
-		version       string
-		requestExt    *openrtb_ext.ExtRequest
-		requestAppExt *openrtb_ext.ExtApp
-		result        string
-	}{
-		{
-			description: "No versions",
-			version:     "",
-			result:      "pbs-go/unknown",
+func TestCleanOpenRTBRequestsSChainMultipleBidders(t *testing.T) {
+	req := &openrtb2.BidRequest{
+		Site: &openrtb2.Site{},
+		Source: &openrtb2.Source{
+			TID: "61018dc9-fa61-4c41-b7dc-f90b9ae80e87",
 		},
-		{
-			description: "pbs",
-			version:     "test-version",
-			result:      "pbs-go/test-version",
-		},
-		{
-			description: "prebid.js",
-			version:     "test-version",
-			requestExt: &openrtb_ext.ExtRequest{
-				Prebid: openrtb_ext.ExtRequestPrebid{
-					Channel: &openrtb_ext.ExtRequestPrebidChannel{
-						Name:    "pbjs",
-						Version: "test-pbjs-version",
-					},
-				},
-			},
-			result: "pbs-go/test-version,pbjs/test-pbjs-version",
-		},
-		{
-			description: "unknown prebid.js",
-			version:     "test-version",
-			requestExt: &openrtb_ext.ExtRequest{
-				Prebid: openrtb_ext.ExtRequestPrebid{
-					Channel: &openrtb_ext.ExtRequestPrebidChannel{
-						Name: "pbjs",
-					},
-				},
-			},
-			result: "pbs-go/test-version,pbjs/unknown",
-		},
-		{
-			description: "channel without a name",
-			version:     "test-version",
-			requestExt: &openrtb_ext.ExtRequest{
-				Prebid: openrtb_ext.ExtRequestPrebid{
-					Channel: &openrtb_ext.ExtRequestPrebidChannel{
-						Version: "test-version",
-					},
-				},
-			},
-			result: "pbs-go/test-version",
-		},
-		{
-			description: "prebid-mobile",
-			version:     "test-version",
-			requestAppExt: &openrtb_ext.ExtApp{
-				Prebid: openrtb_ext.ExtAppPrebid{
-					Source:  "prebid-mobile",
-					Version: "test-prebid-mobile-version",
-				},
-			},
-			result: "pbs-go/test-version,prebid-mobile/test-prebid-mobile-version",
-		},
-		{
-			description: "app ext without a source",
-			version:     "test-version",
-			requestAppExt: &openrtb_ext.ExtApp{
-				Prebid: openrtb_ext.ExtAppPrebid{
-					Version: "test-version",
-				},
-			},
-			result: "pbs-go/test-version",
-		},
-		{
-			description: "Version found in both req.Ext and req.App.Ext",
-			version:     "test-version",
-			requestExt: &openrtb_ext.ExtRequest{
-				Prebid: openrtb_ext.ExtRequestPrebid{
-					Channel: &openrtb_ext.ExtRequestPrebidChannel{
-						Name:    "pbjs",
-						Version: "test-pbjs-version",
-					},
-				},
-			},
-			requestAppExt: &openrtb_ext.ExtApp{
-				Prebid: openrtb_ext.ExtAppPrebid{
-					Source:  "prebid-mobile",
-					Version: "test-prebid-mobile-version",
-				},
-			},
-			result: "pbs-go/test-version,pbjs/test-pbjs-version,prebid-mobile/test-prebid-mobile-version",
-		},
+		Imp: []openrtb2.Imp{{
+			Ext: json.RawMessage(`{"appnexus": {"placementId": 1}, "axonix": { "supplyId": "123"}}`),
+		}},
+		Ext: json.RawMessage(`{"prebid":{"schains":[{ "bidders":["appnexus"],"schain":{"complete":1,"nodes":[{"asi":"directseller1.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}, {"bidders":["axonix"],"schain":{"complete":1,"nodes":[{"asi":"directseller2.com","sid":"00002","rid":"BidRequest2","hp":1}],"ver":"1.0"}}]}}`),
 	}
 
-	for _, test := range testCases {
-		req := &openrtb2.BidRequest{}
-		if test.requestExt != nil {
-			reqExt, err := json.Marshal(test.requestExt)
-			assert.NoError(t, err, test.description+":err marshalling reqExt")
-			req.Ext = reqExt
-		}
-		if test.requestAppExt != nil {
-			reqAppExt, err := json.Marshal(test.requestAppExt)
-			assert.NoError(t, err, test.description+":err marshalling reqAppExt")
-			req.App = &openrtb2.App{Ext: reqAppExt}
-		}
-		result := buildXPrebidHeader(req, test.version)
-		assert.Equal(t, test.result, result, test.description+":result")
+	unmarshaledExt, err := extractBidRequestExt(req)
+	assert.NoErrorf(t, err, "Error unmarshaling inExt")
+	extRequest := unmarshaledExt
+
+	auctionReq := AuctionRequest{
+		BidRequest: req,
+		UserSyncs:  &emptyUsersync{},
 	}
+	bidderToSyncerKey := map[string]string{}
+	permissions := permissionsMock{allowAllBidders: true, passGeo: true, passID: true}
+	metrics := metrics.MetricsEngineMock{}
+	bidderRequests, _, errs := cleanOpenRTBRequests(context.Background(), auctionReq, extRequest, bidderToSyncerKey, &permissions, &metrics, gdpr.SignalNo, config.Privacy{}, nil)
+
+	assert.Nil(t, errs)
+	assert.Len(t, bidderRequests, 2, "Bid request count is not 2")
+
+	bidRequestSourceExts := map[openrtb_ext.BidderName]json.RawMessage{}
+	for _, bidderRequest := range bidderRequests {
+		bidRequestSourceExts[bidderRequest.BidderName] = bidderRequest.BidRequest.Source.Ext
+	}
+
+	appnexusPrebidSchainsSchain := json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"directseller1.com","sid":"00001","rid":"BidRequest1","hp":1}],"ver":"1.0"}}`)
+	axonixPrebidSchainsSchain := json.RawMessage(`{"schain":{"complete":1,"nodes":[{"asi":"directseller2.com","sid":"00002","rid":"BidRequest2","hp":1}],"ver":"1.0"}}`)
+	assert.Equal(t, appnexusPrebidSchainsSchain, bidRequestSourceExts["appnexus"], "Incorrect appnexus bid request schain in source.ext")
+	assert.Equal(t, axonixPrebidSchainsSchain, bidRequestSourceExts["axonix"], "Incorrect axonix bid request schain in source.ext")
 }
 
 func TestApplyFPD(t *testing.T) {
-
 	fpdBidderTest := map[openrtb_ext.BidderName]*firstpartydata.ResolvedFirstPartyData{}
 	bidderTest := openrtb_ext.BidderName("test")
 	fpdBidderTest[bidderTest] = &firstpartydata.ResolvedFirstPartyData{Site: nil, App: nil, User: nil}
@@ -2664,5 +2606,67 @@ func TestApplyFPD(t *testing.T) {
 	for _, testCase := range testCases {
 		applyFPD(testCase.inputFpd[testCase.bidderName], &testCase.inputRequest)
 		assert.Equal(t, testCase.expectedRequest, testCase.inputRequest, fmt.Sprintf("incorrect request after applying fpd, testcase %s", testCase.description))
+	}
+}
+
+func Test_parseAliasesGVLIDs(t *testing.T) {
+	type args struct {
+		orig *openrtb2.BidRequest
+	}
+	tests := []struct {
+		name      string
+		args      args
+		want      map[string]uint16
+		wantError bool
+	}{
+		{
+			"AliasGVLID Parsed Correctly",
+			args{
+				orig: &openrtb2.BidRequest{
+					Ext: json.RawMessage(`{"prebid":{"aliases":{"brightroll":"appnexus"}, "aliasgvlids":{"brightroll":1}}}`),
+				},
+			},
+			map[string]uint16{"brightroll": 1},
+			false,
+		},
+		{
+			"AliasGVLID parsing error",
+			args{
+				orig: &openrtb2.BidRequest{
+					Ext: json.RawMessage(`{"prebid":{"aliases":{"brightroll":"appnexus"}, "aliasgvlids": {"brightroll":"abc"}`),
+				},
+			},
+			nil,
+			true,
+		},
+		{
+			"Invalid AliasGVLID",
+			args{
+				orig: &openrtb2.BidRequest{
+					Ext: json.RawMessage(`{"prebid":{"aliases":{"brightroll":"appnexus"}, "aliasgvlids":"abc"}`),
+				},
+			},
+			nil,
+			true,
+		},
+		{
+			"Missing AliasGVLID",
+			args{
+				orig: &openrtb2.BidRequest{
+					Ext: json.RawMessage(`{"prebid":{"aliases":{"brightroll":"appnexus"}}`),
+				},
+			},
+			nil,
+			false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseAliasesGVLIDs(tt.args.orig)
+			assert.Equal(t, tt.want, got, "parseAliasesGVLIDs() got = %v, want %v", got, tt.want)
+			if !tt.wantError && err != nil {
+				t.Errorf("parseAliasesGVLIDs() expected error got nil")
+			}
+		})
 	}
 }
