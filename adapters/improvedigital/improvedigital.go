@@ -166,10 +166,7 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 		consentedProvidersKey            = "consented_providers"
 	)
 
-	var (
-		err   error
-		cpStr string
-	)
+	var cpStr string
 
 	// If user/user.ext not defined, no need to parse additional consent
 	if request.User == nil || request.User.Ext == nil {
@@ -179,7 +176,7 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 	// Start validating additional consent
 	// Check key exist user.ext.ConsentedProvidersSettings
 	var userExtMap = make(map[string]json.RawMessage)
-	if err = json.Unmarshal(request.User.Ext, &userExtMap); err != nil {
+	if err := json.Unmarshal(request.User.Ext, &userExtMap); err != nil {
 		return nil, err
 	}
 
@@ -190,7 +187,7 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 
 	// Check key exist user.ext.ConsentedProvidersSettings.consented_providers
 	var cpMap = make(map[string]json.RawMessage)
-	if err = json.Unmarshal(cpsMapValue, &cpMap); err != nil {
+	if err := json.Unmarshal(cpsMapValue, &cpMap); err != nil {
 		return nil, err
 	}
 
@@ -212,15 +209,15 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 	cpStr = fmt.Sprintf("[%s]", strings.Replace(cpStr, ".", ",", -1))
 	cpMap[consentedProvidersKey] = json.RawMessage(cpStr)
 
-	cpJSON, cpErr := json.Marshal(cpMap)
-	if cpErr != nil {
+	cpJSON, err := json.Marshal(cpMap)
+	if err != nil {
 		return nil, err
 	}
 	userExtMap[consentProvidersSettingsOutKey] = cpJSON
 
-	extJson, extErr := json.Marshal(userExtMap)
-	if extErr != nil {
-		return nil, extErr
+	extJson, err := json.Marshal(userExtMap)
+	if err != nil {
+		return nil, err
 	}
 
 	return extJson, nil
