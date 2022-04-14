@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/prebid/openrtb/v17/openrtb2"
@@ -13,8 +14,18 @@ import (
 	"github.com/prebid/prebid-server/openrtb_ext"
 )
 
+const BuyingTypeRTB = "rtb"
+
 type ImprovedigitalAdapter struct {
 	endpoint string
+}
+
+// BidExt This struct usage for parse line_item_id and buying_type from bid.ext
+type BidExt struct {
+	ImproveDigital struct {
+		LineItemId int    `json:"line_item_id"`
+		BuyingType string `json:"buying_type"`
+	}
 }
 
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
@@ -36,6 +47,15 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 }
 
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
+	// Handle Rewarded Inventory
+	extImp, err := getImpExtWithRewardedInventory(imp)
+	if err != nil {
+		return nil, err
+	}
+	if len(extImp) > 0 {
+		imp.Ext = extImp
+	}
+
 	request.Imp = []openrtb2.Imp{imp}
 
 	userExtAddtlConsent, err := a.getAdditionalConsentProvidersUserExt(request)
@@ -112,6 +132,19 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 		bidType, err := getMediaTypeForImp(bid.ImpID, internalRequest.Imp)
 		if err != nil {
 			return nil, []error{err}
+		}
+
+		if bid.Ext != nil {
+			var bidExt BidExt
+			err = json.Unmarshal(bid.Ext, &bidExt)
+			if err != nil {
+				return nil, []error{err}
+			}
+
+			improveDigital := bidExt.ImproveDigital
+			if improveDigital.LineItemId != 0 && improveDigital.BuyingType != BuyingTypeRTB {
+				bid.DealID = strconv.Itoa(improveDigital.LineItemId)
+			}
 		}
 
 		bidResponse.Bids = append(bidResponse.Bids, &adapters.TypedBid{
@@ -221,4 +254,37 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 	}
 
 	return extJson, nil
+}
+
+func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
+	var ext = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(imp.Ext, &ext); err != nil {
+		return nil, err
+	}
+
+	prebidJSONValue, prebidJSONFound := ext["prebid"]
+	if !prebidJSONFound {
+		return nil, nil
+	}
+
+	var prebidMap = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(prebidJSONValue, &prebidMap); err != nil {
+		return nil, err
+	}
+
+	rewardedInventory, foundRewardedInventory := prebidMap["is_rewarded_inventory"]
+	if !foundRewardedInventory {
+		return nil, nil
+	}
+
+	if string(rewardedInventory) == "1" {
+		ext["is_rewarded_inventory"] = json.RawMessage(`true`)
+	}
+
+	impExt, err := json.Marshal(ext)
+	if err != nil {
+		return nil, err
+	}
+
+	return impExt, nil
 }
