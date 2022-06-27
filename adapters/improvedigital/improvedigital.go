@@ -15,6 +15,7 @@ import (
 )
 
 const BuyingTypeRTB = "rtb"
+const isRewardedInventory = "is_rewarded_inventory"
 
 type ImprovedigitalAdapter struct {
 	endpoint string
@@ -272,13 +273,13 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 		return nil, err
 	}
 
-	rewardedInventory, foundRewardedInventory := prebidMap["is_rewarded_inventory"]
+	rewardedInventory, foundRewardedInventory := prebidMap[isRewardedInventory]
 	if !foundRewardedInventory {
 		return nil, nil
 	}
 
 	if string(rewardedInventory) == "1" {
-		ext["is_rewarded_inventory"] = json.RawMessage(`true`)
+		ext[isRewardedInventory] = json.RawMessage(`true`)
 	}
 
 	impExt, err := json.Marshal(ext)
