@@ -14,8 +14,14 @@ import (
 	"github.com/prebid/prebid-server/openrtb_ext"
 )
 
-const BuyingTypeRTB = "rtb"
-const isRewardedInventory = "is_rewarded_inventory"
+const (
+	buyingTypeRTB                    = "rtb"
+	isRewardedInventory              = "is_rewarded_inventory"
+	stateRewardedInventoryEnable     = "1"
+	consentProvidersSettingsInputKey = "ConsentedProvidersSettings"
+	consentProvidersSettingsOutKey   = "consented_providers_settings"
+	consentedProvidersKey            = "consented_providers"
+)
 
 type ImprovedigitalAdapter struct {
 	endpoint string
@@ -23,7 +29,7 @@ type ImprovedigitalAdapter struct {
 
 // BidExt This struct usage for parse line_item_id and buying_type from bid.ext
 type BidExt struct {
-	ImproveDigital struct {
+	Improvedigital struct {
 		LineItemId int    `json:"line_item_id"`
 		BuyingType string `json:"buying_type"`
 	}
@@ -53,7 +59,7 @@ func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp ope
 	if err != nil {
 		return nil, err
 	}
-	if len(extImp) > 0 {
+	if extImp != nil {
 		imp.Ext = extImp
 	}
 
@@ -142,9 +148,9 @@ func (a *ImprovedigitalAdapter) MakeBids(internalRequest *openrtb2.BidRequest, e
 				return nil, []error{err}
 			}
 
-			improveDigital := bidExt.ImproveDigital
-			if improveDigital.LineItemId != 0 && improveDigital.BuyingType != BuyingTypeRTB {
-				bid.DealID = strconv.Itoa(improveDigital.LineItemId)
+			bidExtImprovedigital := bidExt.Improvedigital
+			if bidExtImprovedigital.LineItemId != 0 && bidExtImprovedigital.BuyingType != "" && bidExtImprovedigital.BuyingType != buyingTypeRTB {
+				bid.DealID = strconv.Itoa(bidExtImprovedigital.LineItemId)
 			}
 		}
 
@@ -194,12 +200,6 @@ func getMediaTypeForImp(impID string, imps []openrtb2.Imp) (openrtb_ext.BidType,
 
 // This method responsible to clone request and convert additional consent providers string to array when additional consent provider found
 func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request openrtb2.BidRequest) ([]byte, error) {
-	const (
-		consentProvidersSettingsInputKey = "ConsentedProvidersSettings"
-		consentProvidersSettingsOutKey   = "consented_providers_settings"
-		consentedProvidersKey            = "consented_providers"
-	)
-
 	var cpStr string
 
 	// If user/user.ext not defined, no need to parse additional consent
@@ -278,14 +278,15 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 		return nil, nil
 	}
 
-	if string(rewardedInventory) == "1" {
+	if string(rewardedInventory) == stateRewardedInventoryEnable {
 		ext[isRewardedInventory] = json.RawMessage(`true`)
+		impExt, err := json.Marshal(ext)
+		if err != nil {
+			return nil, err
+		}
+
+		return impExt, nil
 	}
 
-	impExt, err := json.Marshal(ext)
-	if err != nil {
-		return nil, err
-	}
-
-	return impExt, nil
+	return nil, nil
 }
