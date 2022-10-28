@@ -35,6 +35,13 @@ type BidExt struct {
 	}
 }
 
+// ImpExtBidder This struct usage for parse publisherId from imp.ext.bidder
+type ImpExtBidder struct {
+	Bidder struct {
+		PublisherId int `json:"publisherId"`
+	}
+}
+
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
 func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqInfo *adapters.ExtraRequestInfo) ([]*adapters.RequestData, []error) {
 	numRequests := len(request.Imp)
@@ -86,7 +93,7 @@ func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp ope
 
 	return &adapters.RequestData{
 		Method:  "POST",
-		Uri:     a.endpoint,
+		Uri:     a.buildEndpointURL(imp),
 		Body:    reqJSON,
 		Headers: headers,
 	}, nil
@@ -289,4 +296,17 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 	}
 
 	return nil, nil
+}
+
+func (a *ImprovedigitalAdapter) buildEndpointURL(imp openrtb2.Imp) string {
+	publisherId := ""
+	publisherIdParam := "{PublisherId}"
+	var impBidder ImpExtBidder
+
+	err := json.Unmarshal(imp.Ext, &impBidder)
+	if err == nil && impBidder.Bidder.PublisherId != 0 {
+		publisherId = strconv.Itoa(impBidder.Bidder.PublisherId) + "/"
+	}
+
+	return strings.Replace(a.endpoint, publisherIdParam, publisherId, -1)
 }
