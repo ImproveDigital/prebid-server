@@ -21,7 +21,7 @@ const (
 	consentProvidersSettingsInputKey = "ConsentedProvidersSettings"
 	consentProvidersSettingsOutKey   = "consented_providers_settings"
 	consentedProvidersKey            = "consented_providers"
-	publisherEndpointParam           = "{PublisherID}"
+	publisherEndpointParam           = "{PublisherId}"
 )
 
 type ImprovedigitalAdapter struct {
