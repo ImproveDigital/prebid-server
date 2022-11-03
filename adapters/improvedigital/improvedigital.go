@@ -21,6 +21,7 @@ const (
 	consentProvidersSettingsInputKey = "ConsentedProvidersSettings"
 	consentProvidersSettingsOutKey   = "consented_providers_settings"
 	consentedProvidersKey            = "consented_providers"
+	publisherEndpointParam           = "{PublisherID}"
 )
 
 type ImprovedigitalAdapter struct {
@@ -35,10 +36,10 @@ type BidExt struct {
 	}
 }
 
-// ImpExtBidder This struct usage for parse publisherId from imp.ext.bidder
+// ImpExtBidder represents Improved Digital bid extension with Publisher ID
 type ImpExtBidder struct {
 	Bidder struct {
-		PublisherId int `json:"publisherId"`
+		PublisherID int `json:"publisherId"`
 	}
 }
 
@@ -299,14 +300,13 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 }
 
 func (a *ImprovedigitalAdapter) buildEndpointURL(imp openrtb2.Imp) string {
-	publisherId := ""
-	publisherIdParam := "{PublisherId}"
+	publisherEndpoint := ""
 	var impBidder ImpExtBidder
 
 	err := json.Unmarshal(imp.Ext, &impBidder)
-	if err == nil && impBidder.Bidder.PublisherId != 0 {
-		publisherId = strconv.Itoa(impBidder.Bidder.PublisherId) + "/"
+	if err == nil && impBidder.Bidder.PublisherID != 0 {
+		publisherEndpoint = strconv.Itoa(impBidder.Bidder.PublisherID) + "/"
 	}
 
-	return strings.Replace(a.endpoint, publisherIdParam, publisherId, -1)
+	return strings.Replace(a.endpoint, publisherEndpointParam, publisherEndpoint, -1)
 }
