@@ -36,13 +36,6 @@ type BidExt struct {
 	}
 }
 
-// ImpExtBidder represents Improved Digital bid extension with Publisher ID
-type ImpExtBidder struct {
-	Bidder struct {
-		PublisherID int `json:"publisherId"`
-	}
-}
-
 // MakeRequests makes the HTTP requests which should be made to fetch bids.
 func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqInfo *adapters.ExtraRequestInfo) ([]*adapters.RequestData, []error) {
 	numRequests := len(request.Imp)
@@ -62,8 +55,13 @@ func (a *ImprovedigitalAdapter) MakeRequests(request *openrtb2.BidRequest, reqIn
 }
 
 func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp openrtb2.Imp) (*adapters.RequestData, error) {
+	impExtMap, err := extractImpExt(imp)
+	if err != nil {
+		return nil, err
+	}
+
 	// Handle Rewarded Inventory
-	impExt, err := getImpExtWithRewardedInventory(imp)
+	impExt, err := getImpExtWithRewardedInventory(impExtMap)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +92,7 @@ func (a *ImprovedigitalAdapter) makeRequest(request openrtb2.BidRequest, imp ope
 
 	return &adapters.RequestData{
 		Method:  "POST",
-		Uri:     a.buildEndpointURL(imp),
+		Uri:     a.buildEndpointURL(extractPublisherIdFromImpExt(impExtMap)),
 		Body:    reqJSON,
 		Headers: headers,
 	}, nil
@@ -265,13 +263,8 @@ func (a *ImprovedigitalAdapter) getAdditionalConsentProvidersUserExt(request ope
 	return extJson, nil
 }
 
-func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
-	var ext = make(map[string]json.RawMessage)
-	if err := json.Unmarshal(imp.Ext, &ext); err != nil {
-		return nil, err
-	}
-
-	prebidJSONValue, prebidJSONFound := ext["prebid"]
+func getImpExtWithRewardedInventory(impExt map[string]json.RawMessage) ([]byte, error) {
+	prebidJSONValue, prebidJSONFound := impExt["prebid"]
 	if !prebidJSONFound {
 		return nil, nil
 	}
@@ -282,8 +275,8 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 	}
 
 	if rewardedInventory, foundRewardedInventory := prebidMap[isRewardedInventory]; foundRewardedInventory && string(rewardedInventory) == stateRewardedInventoryEnable {
-		ext[isRewardedInventory] = json.RawMessage(`true`)
-		impExt, err := json.Marshal(ext)
+		impExt[isRewardedInventory] = json.RawMessage(`true`)
+		impExt, err := json.Marshal(impExt)
 		if err != nil {
 			return nil, err
 		}
@@ -294,14 +287,39 @@ func getImpExtWithRewardedInventory(imp openrtb2.Imp) ([]byte, error) {
 	return nil, nil
 }
 
-func (a *ImprovedigitalAdapter) buildEndpointURL(imp openrtb2.Imp) string {
-	publisherEndpoint := ""
-	var impBidder ImpExtBidder
+func (a *ImprovedigitalAdapter) buildEndpointURL(publisherId string) string {
+	var publisherEndpoint string
 
-	err := json.Unmarshal(imp.Ext, &impBidder)
-	if err == nil && impBidder.Bidder.PublisherID != 0 {
-		publisherEndpoint = strconv.Itoa(impBidder.Bidder.PublisherID) + "/"
+	if publisherId != "" {
+		publisherEndpoint = publisherId + "/"
 	}
 
 	return strings.Replace(a.endpoint, publisherEndpointParam, publisherEndpoint, -1)
+}
+
+func extractImpExt(imp openrtb2.Imp) (map[string]json.RawMessage, error) {
+	var ext = make(map[string]json.RawMessage)
+	if err := json.Unmarshal(imp.Ext, &ext); err != nil {
+		return nil, err
+	}
+
+	return ext, nil
+}
+
+func extractPublisherIdFromImpExt(impExt map[string]json.RawMessage) string {
+	var publisherId string
+	if bidder, ok := impExt["bidder"]; ok {
+		var bidderMap = make(map[string]json.RawMessage)
+		if err := json.Unmarshal(bidder, &bidderMap); err == nil {
+			if publisherID, ok := bidderMap["publisherId"]; ok {
+				// Convert the publisherID variable to an integer and check if the pid variable is greater than 0.
+				// If it is, assign the pid variable back to a string and concatenate it with "/" to the publisherEndpoint variable.
+				if pid, err := strconv.Atoi(string(publisherID)); err == nil && pid > 0 {
+					publisherId = strconv.Itoa(pid)
+				}
+			}
+		}
+	}
+
+	return publisherId
 }
