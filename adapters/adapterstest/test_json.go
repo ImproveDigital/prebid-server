@@ -280,6 +280,9 @@ func assertMakeBidsOutput(t *testing.T, filename string, bidderResponse *adapter
 	if !assert.Len(t, bidderResponse.Bids, len(expected.Bids), "%s: Wrong MakeBids bidderResponse.Bids count. len(bidderResponse.Bids) = %d vs len(spec.BidResponses.Bids) = %d", filename, len(bidderResponse.Bids), len(expected.Bids)) {
 		return
 	}
+	if !assert.Equal(t, expected.Currency, bidderResponse.Currency, "%s: Wrong MakeBids bidderResponse.Currency. bidderResponse.Currency = %s vs spec.BidResponses.Currency = %s", filename, bidderResponse.Currency, expected.Currency) {
+		return
+	}
 	for i := 0; i < len(bidderResponse.Bids); i++ {
 		diffBids(t, fmt.Sprintf("%s:  typedBid[%d]", filename, i), bidderResponse.Bids[i], &(expected.Bids[i]))
 	}
